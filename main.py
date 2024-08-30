@@ -102,7 +102,7 @@ def take_samples():
     }
 
 
-def run_pump(time_to_run):
+def run_pump(time_to_run: int):
     # TODO Implement pump logic
     print(f"Running pump for {time_to_run} seconds")
     pump.value = True
@@ -111,7 +111,7 @@ def run_pump(time_to_run):
     print("Turned off pump.")
 
 
-def water_plant(results):
+def water_plant(results: dict[string, float]):
     db.execute("SELECT * FROM plant WHERE id = 1;")
     plant = dict(db.fetchone())
 
