@@ -145,6 +145,7 @@ def water_plant(results):
             "INSERT INTO watering_log (moisture, plant_id) VALUES (?, ?);",
             [results["moisture"], plant["id"]],
         )
+        #TODO: Figure out if there's a way to reset this if the process dies for whatever reason..
         run_pump(3)
         con.commit()
     except:
@@ -157,7 +158,7 @@ def main():
         results = take_samples()
         water_plant(results)
 
-        time.sleep(1)
+        time.sleep(1 * hour)
 
 
 dhtDevice = adafruit_dht.DHT11(board.D18)
