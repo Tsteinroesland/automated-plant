@@ -1,14 +1,13 @@
 import sqlite3
+import json
 import time
-
 import adafruit_dht
 import adafruit_hcsr04
 import board
 import digitalio
 import pyfirmata2
 
-arduino = pyfirmata2.Arduino("/dev/ttyACM0")
-
+translate = lambda a, b, c, d, e: round((a - b) * (e - d) / (c - b) + d, 2)
 
 def take_moisture_sample():
     moisture_samples = []
@@ -18,7 +17,8 @@ def take_moisture_sample():
     arduino.analog[1].disable_reporting()
     arduino.analog[1].unregiser_callback()
 
-    average_moisture = round(sum(moisture_samples) / len(moisture_samples), 2)
+    #Invert the result to make it easier to resonate about min and max moisture
+    average_moisture = round(1 - sum(moisture_samples) / len(moisture_samples), 2)
     return average_moisture
 
 
@@ -40,9 +40,11 @@ def take_temperature_and_humidiy_sample():
             counter += 1
         except RuntimeError as error:
             # Errors happen fairly often, DHT's are hard to read, just keep going
+            print("RuntimeError")
             print(error.args[0])
             continue
         except Exception as error:
+            print("Fatal error. Exiting DHT device")
             dhtDevice.exit()
             raise error
 
@@ -58,7 +60,7 @@ def take_tank_level_sample():
         try:
             distance_samples.append(sonar.distance)
             counter = counter + 1
-            time.sleep(2)
+            time.sleep(1)
 
         except:
             print("Reading distance failed. Retrying...")
@@ -69,8 +71,8 @@ def take_tank_level_sample():
 def take_samples():
     print("Taking measurements.")
     moisture = take_moisture_sample()
-    temp_and_humidity_results = take_temperature_and_humidiy_sample()
     tank_distance = take_tank_level_sample()
+    temp_and_humidity_results = take_temperature_and_humidiy_sample()
 
     print(
         "Soil moisture:",
@@ -104,6 +106,9 @@ def take_samples():
 
 def run_pump(time_to_run: int):
     # TODO Implement pump logic
+    pump = digitalio.DigitalInOut(board.D26)
+    pump.direction = digitalio.Direction.OUTPUT
+
     print(f"Running pump for {time_to_run} seconds")
     pump.value = True
     time.sleep(time_to_run)
@@ -111,15 +116,15 @@ def run_pump(time_to_run: int):
     print("Turned off pump.")
 
 
-def water_plant(results: dict[string, float]):
+def water_plant(results: dict[str, float]):
     db.execute("SELECT * FROM plant WHERE id = 1;")
     plant = dict(db.fetchone())
 
-    # Low moisture value means wet plant
-    if results["moisture"] < plant["min_moisture"]:
+    # High moisture value means wet plant
+    if results["moisture"] > plant["max_moisture"]:
         plant["is_drying"] = 1
-    # High moisture value means dry plant
-    elif results["moisture"] > plant["max_moisture"]:
+    # Low moisture value means wet plant
+    elif results["moisture"] < plant["min_moisture"]:
         plant["is_drying"] = 0
 
     db.execute(
@@ -153,22 +158,13 @@ def water_plant(results: dict[string, float]):
         # TODO: Should probably attempt to disconnect everything gracefully at this point..
 
 
-def main():
-    while True:
-        results = take_samples()
-        water_plant(results)
 
-        time.sleep(1 * hour)
-
+arduino = pyfirmata2.Arduino("/dev/ttyACM0")
+arduino.samplingOn(20)
 
 dhtDevice = adafruit_dht.DHT11(board.D18)
 
-pump = digitalio.DigitalInOut(board.D26)
-pump.direction = digitalio.Direction.OUTPUT
-
 sonar = adafruit_hcsr04.HCSR04(board.D5, board.D6)
-# Sample every 20th millisecond
-arduino.samplingOn(20)
 
 con = sqlite3.connect("plant.db")
 con.row_factory = sqlite3.Row
@@ -176,5 +172,8 @@ db = con.cursor()
 
 minute = 60
 hour = minute * 60
+while True:
+    results = take_samples()
+    water_plant(results)
+    time.sleep(1 * minute)
 
-main()
