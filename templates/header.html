@@ -1,0 +1,26 @@
+<div style="display: flex; align-items: flex-end; font-variation-settings: 'FILL' 0, 'wght' 100, 'GRAD' 0, 'opsz' 48;">
+	<span id="thermostat-icon" class="material-symbols-outlined" style="font-size: 60px;">thermostat</span>
+	<span style="margin-right: 10px; margin-bottom: 10px;">{{ latest_temperature }} °C</span>
+
+	<span id="humidity-icon" class="material-symbols-outlined" style="font-size: 60px">humidity_percentage</span>
+	<span style="margin-bottom: 10px; margin-right: 10px;">{{ latest_humidity }}</span>
+
+	<div class="circle" style="display: flex; justify-content: center; align-items: center; margin-bottom: 10px"></div>
+	<span style="margin-bottom: 10px; margin-left: 5px;">{{ latest_tank_level}}%</span>
+</div>
+
+<style id="tank-level-animation">
+  :root {
+    --tank-percentage: {{ latest_tank_level }};
+    --y-pos: calc(40px - 40px * var(--tank-percentage) / 100 - 15px + (15px * var(--tank-percentage) / 100));
+  }
+
+  @keyframes flow {
+    0% {
+      background-position: 40px var(--y-pos);
+    }
+    100% {
+      background-position: 0px var(--y-pos);
+    }
+  }
+</style>

@@ -56,16 +56,16 @@ def take_temperature_and_humidiy_sample():
 def take_tank_level_sample():
     counter = 0
     distance_samples = []
-    while counter < 6:
+    while counter < 300:
         try:
             distance_samples.append(sonar.distance)
             counter = counter + 1
-            time.sleep(1)
+            time.sleep(0.1)
 
         except:
             print("Reading distance failed. Retrying...")
 
-    return round(sum(distance_samples) / 5, 2)
+    return round(sum(distance_samples) / len(distance_samples), 2)
 
 
 def take_samples():
@@ -175,5 +175,5 @@ hour = minute * 60
 while True:
     results = take_samples()
     water_plant(results)
-    time.sleep(1 * minute)
+    time.sleep(15 * minute)
 
