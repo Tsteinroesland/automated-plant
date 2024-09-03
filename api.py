@@ -15,10 +15,25 @@ app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 
-translate = lambda a, b, c, d, e: round((a - b) * (e - d) / (c - b) + d, 2)
+'''
+This function was yanked from StackOverflow
+https://stackoverflow.com/questions/1969240/mapping-a-range-of-values-to-another
+'''
+def translate(value, leftMin, leftMax, rightMin, rightMax):
+    # Figure out how 'wide' each range is
+    leftSpan = leftMax - leftMin
+    rightSpan = rightMax - rightMin
 
+    # Convert the left range into a 0-1 range (float)
+    valueScaled = float(value - leftMin) / float(leftSpan)
+
+    # Convert the 0-1 range into a value in the right range.
+    return rightMin + (valueScaled * rightSpan)
+
+#The maximum distance to allow before the reservoir is considered empty.
 MAX_SONAR_DISTANCE = 18.0
-MIN_SONAR_DISTANCE = 12.34
+#The minimum distance before the reservoir is considered full.
+MIN_SONAR_DISTANCE = 12.23
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
@@ -48,9 +63,9 @@ async def index(request: Request):
             "data": json.dumps(results),
             "latest_temperature": meta_data["latest_temperature"],
             "latest_humidity": meta_data["latest_humidity"],
-            "latest_tank_level": translate(
+            "latest_tank_level": round(translate(
                 meta_data["latest_tank_level"], MAX_SONAR_DISTANCE, MIN_SONAR_DISTANCE, 0, 100
-            ),
+            ), 2),
         },
     )
 
@@ -79,5 +94,6 @@ async def get_char_data(id: int):
     db.execute("SELECT * from measurements WHERE id > ?;", [id])
     results = db.fetchall()
     measurements = [dict(row) for row in results]
+
     return jsonable_encoder(measurements)
 

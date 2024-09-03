@@ -1,6 +1,6 @@
 import sqlite3
-import json
 import time
+
 import adafruit_dht
 import adafruit_hcsr04
 import board
@@ -8,6 +8,7 @@ import digitalio
 import pyfirmata2
 
 translate = lambda a, b, c, d, e: round((a - b) * (e - d) / (c - b) + d, 2)
+
 
 def take_moisture_sample():
     moisture_samples = []
@@ -17,7 +18,7 @@ def take_moisture_sample():
     arduino.analog[1].disable_reporting()
     arduino.analog[1].unregiser_callback()
 
-    #Invert the result to make it easier to resonate about min and max moisture
+    # Invert the result to make it easier to resonate about min and max moisture
     average_moisture = round(1 - sum(moisture_samples) / len(moisture_samples), 2)
     return average_moisture
 
@@ -30,8 +31,6 @@ def take_temperature_and_humidiy_sample():
 
     while counter <= measurementsForWrite:
         try:
-            # TODO: If one fails and not the other, that's a problem
-            # TODO: Shitty results on first reading, "Checksum did not validate returned in error"
             temperature_c = dhtDevice.temperature
             humidity = dhtDevice.humidity
 
@@ -56,6 +55,7 @@ def take_temperature_and_humidiy_sample():
 def take_tank_level_sample():
     counter = 0
     distance_samples = []
+    attempts = 0
     while counter < 300:
         try:
             distance_samples.append(sonar.distance)
@@ -65,14 +65,24 @@ def take_tank_level_sample():
         except:
             print("Reading distance failed. Retrying...")
 
+        finally:
+            attempts += 1
+
+        if attempts > 350:
+            raise Exception("Too many retries. Exiting loop.")
+
     return round(sum(distance_samples) / len(distance_samples), 2)
 
 
 def take_samples():
     print("Taking measurements.")
-    moisture = take_moisture_sample()
-    tank_distance = take_tank_level_sample()
-    temp_and_humidity_results = take_temperature_and_humidiy_sample()
+    try:
+        moisture = take_moisture_sample()
+        tank_distance = take_tank_level_sample()
+        temp_and_humidity_results = take_temperature_and_humidiy_sample()
+    except Exception as error:
+        print("Reading measurements failed. Exiting.")
+        raise error
 
     print(
         "Soil moisture:",
@@ -105,10 +115,6 @@ def take_samples():
 
 
 def run_pump(time_to_run: int):
-    # TODO Implement pump logic
-    pump = digitalio.DigitalInOut(board.D26)
-    pump.direction = digitalio.Direction.OUTPUT
-
     print(f"Running pump for {time_to_run} seconds")
     pump.value = True
     time.sleep(time_to_run)
@@ -138,11 +144,7 @@ def water_plant(results: dict[str, float]):
         return
 
     if results["tank_distance"] > plant["tank_max_distance"]:
-        print("Tank level too low! Not watering!")
-        """
-        TODO: Maybe light up a LED on the board when this happens
-        to physically signal that water needs to be refilled
-        """
+        print("Reservoir water level too low! Not watering!")
         return
 
     try:
@@ -150,13 +152,16 @@ def water_plant(results: dict[str, float]):
             "INSERT INTO watering_log (moisture, plant_id) VALUES (?, ?);",
             [results["moisture"], plant["id"]],
         )
-        #TODO: Figure out if there's a way to reset this if the process dies for whatever reason..
         run_pump(3)
-        con.commit()
-    except:
-        print("Well shit..")
-        # TODO: Should probably attempt to disconnect everything gracefully at this point..
+    except Exception as pump_error:
+        pump.value = False
+        print(
+            "Exception was thrown while running the pump.",
+            pump_error.args[0],
+        )
+        raise pump_error
 
+    con.commit()
 
 
 arduino = pyfirmata2.Arduino("/dev/ttyACM0")
@@ -166,14 +171,18 @@ dhtDevice = adafruit_dht.DHT11(board.D18)
 
 sonar = adafruit_hcsr04.HCSR04(board.D5, board.D6)
 
+pump = digitalio.DigitalInOut(board.D26)
+pump.direction = digitalio.Direction.OUTPUT
+
 con = sqlite3.connect("plant.db")
 con.row_factory = sqlite3.Row
 db = con.cursor()
 
 minute = 60
 hour = minute * 60
+sequence_sleep_time = 60 * minute
+
 while True:
     results = take_samples()
     water_plant(results)
-    time.sleep(15 * minute)
-
+    time.sleep(sequence_sleep_time)

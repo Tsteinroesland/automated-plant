@@ -1,0 +1,77 @@
+:root,
+::backdrop {
+  color-scheme: dark;
+  --bg: #212121;
+  --accent-bg: #2b2b2b;
+  --text: #dcdcdc;
+  --text-light: #ababab;
+  --accent: #ffb300;
+  --accent-hover: #ffe099;
+  --accent-text: var(--bg);
+  --code: #f06292;
+  --preformatted: #ccc;
+  --disabled: #111;
+}
+.flex {
+  display: flex;
+}
+
+.align-items-end {
+  align-items: end;
+}
+
+.mr-10 {
+  margin-right: 10px;
+}
+
+.ml-15 {
+  margin-left: 15px;
+}
+
+.mb-10 {
+  margin-bottom: 10px;
+}
+
+.fs-60 {
+  font-size: 60px;
+}
+
+.wrap {
+  flex-wrap: wrap;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.circle {
+  margin: 5px 0px 5px 5px;
+  height: 40px;
+  width: 40px;
+  min-height: 40px;
+  min-width: 40px;
+  border: 1.5px solid white;
+  border-radius: 50%;
+  background: url("./water.png");
+  background-size: 40px 40px;
+  background-repeat: repeat-x;
+  animation: flow 2s linear infinite;
+}
+
+.chart {
+  width: 100vw;
+}
+
+body {
+  display: block;
+  padding-left: 5vw;
+  padding-right: 5vw;
+}
+
+@media (min-width: 1024px) {
+  body {
+    display: block;
+    padding-left: 10vw;
+    padding-right: 10vw;
+  }
+}
